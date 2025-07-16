@@ -9,21 +9,18 @@ const app = new cdk.App();
 cdk.Tags.of(app).add('supnum:Group', 'GROUP-21017-21042-21056-21063');
 cdk.Tags.of(app).add('supnum:Lab', 'PROJET-2');
 
+// Set environment explicitly using default CLI config
+const env = {
+  account: process.env.CDK_DEFAULT_ACCOUNT,
+  region: process.env.CDK_DEFAULT_REGION,
+};
+
+// Deploy your Lambda/API Gateway stack (application)
 new Group2CicdProjectStack(app, 'Group2CicdProjectStack', {
-  /* If you don't specify 'env', this stack will be environment-agnostic.
-   * Account/Region-dependent features and context lookups will not work,
-   * but a single synthesized template can be deployed anywhere. */
-
-  /* Uncomment the next line to specialize this stack for the AWS Account
-   * and Region that are implied by the current CLI configuration. */
-  // env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
-
-  /* Uncomment the next line if you know exactly what Account and Region you
-   * want to deploy the stack to. */
-  // env: { account: '123456789012', region: 'us-east-1' },
-
-  /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
+  env,
 });
 
-// Add your pipeline stack
-new PipelineStack(app, 'Group2PipelineStack');
+// Deploy the pipeline
+new PipelineStack(app, 'Group2PipelineStack', {
+  env,
+});
