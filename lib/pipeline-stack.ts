@@ -13,10 +13,14 @@ export class PipelineStack extends cdk.Stack {
 
     const artifactBucket = new s3.Bucket(this, 'PipelineBucket');
 
-    const sourceOutput = new codepipeline.Artifact();
-    const buildOutput = new codepipeline.Artifact();
+    const sourceOutput = new codepipeline.Artifact('SourceOutput');
+    const cdkBuildOutput = new codepipeline.Artifact('CdkBuildOutput');
 
-    const githubToken = secretsmanager.Secret.fromSecretNameV2(this, 'GitHubToken', 'githubtoken');
+    const githubToken = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      'GitHubToken',
+      'githubtoken'
+    );
 
     const pipeline = new codepipeline.Pipeline(this, 'Group2Pipeline', {
       pipelineName: 'group2-pipeline',
@@ -29,8 +33,8 @@ export class PipelineStack extends cdk.Stack {
       actions: [
         new codepipeline_actions.GitHubSourceAction({
           actionName: 'GitHub_Source',
-          owner: 'Aicha-Fadel', // replace with your GitHub username
-          repo: 'group2-cicd-project', // replace with your GitHub repo
+          owner: 'Aicha-Fadel',
+          repo: 'group2-cicd-project',
           oauthToken: githubToken.secretValue,
           output: sourceOutput,
           branch: 'master',
@@ -38,33 +42,54 @@ export class PipelineStack extends cdk.Stack {
       ],
     });
 
-    // Stage 2: Build
-    const buildProject = new codebuild.PipelineProject(this, 'LambdaBuildProject', {
-      environment: {
-        buildImage: codebuild.LinuxBuildImage.STANDARD_5_0,
-      },
+    // Stage 2: Build - CDK synth
+    const cdkBuild = new codebuild.PipelineProject(this, 'CdkBuildProject', {
+      buildSpec: codebuild.BuildSpec.fromObject({
+        version: '0.2',
+        phases: {
+          install: {
+            'runtime-versions': {
+              nodejs: 18,
+            },
+            commands: [
+              'npm install -g aws-cdk',
+              'npm install',
+            ],
+          },
+          build: {
+            commands: [
+              'npm run build || echo "No build script defined"',
+              'cdk synth Group2CicdProjectStack > cdk.out/group2-cicd-project.template.json',
+            ],
+          },
+        },
+        artifacts: {
+          'base-directory': 'cdk.out',
+          files: ['group2-cicd-project.template.json'],
+        },
+      }),
     });
 
     pipeline.addStage({
       stageName: 'Build',
       actions: [
         new codepipeline_actions.CodeBuildAction({
-          actionName: 'Lambda_Build',
-          project: buildProject,
+          actionName: 'CDK_Build',
+          project: cdkBuild,
           input: sourceOutput,
-          outputs: [buildOutput],
+          outputs: [cdkBuildOutput],
         }),
       ],
     });
 
-    // Stage 3: Deploy (CDK deploy of Lambda/API Gateway via CloudFormation)
+    // Stage 3: Deploy
     pipeline.addStage({
       stageName: 'Deploy',
       actions: [
         new codepipeline_actions.CloudFormationCreateUpdateStackAction({
-          actionName: 'CDK_Deploy',
-          stackName: 'Group2LambdaStack',
-          templatePath: buildOutput.atPath('group2-cicd-project.template.json'),
+          actionName: 'CFN_Deploy',
+          stackName: 'Group2CicdProjectStack',
+          templatePath: cdkBuildOutput.atPath('group2-cicd-project.template.json'),
           adminPermissions: true,
         }),
       ],
