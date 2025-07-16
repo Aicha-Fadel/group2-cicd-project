@@ -7,11 +7,14 @@ phases:
     commands:
       - echo Installing dependencies...
       - npm install
+      - npm install -g aws-cdk
   build:
     commands:
       - echo Build started on `date`
       - npm run build || echo "No build script defined, skipping"
+      - cdk synth > group2-cicd-project.template.json
 
 artifacts:
   files:
     - '**/*'
+    - group2-cicd-project.template.json
