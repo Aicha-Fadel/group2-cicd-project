@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
 import { Group2CicdProjectStack } from '../lib/group2-cicd-project-stack';
+import { PipelineStack } from '../lib/pipeline-stack'; // Import pipeline stack
 
 const app = new cdk.App();
+
+// Add tags to all resources in the app
+cdk.Tags.of(app).add('supnum:Group', 'GROUP-21017-21042-21056-21063');
+cdk.Tags.of(app).add('supnum:Lab', 'PROJET-2');
+
 new Group2CicdProjectStack(app, 'Group2CicdProjectStack', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
@@ -18,3 +24,6 @@ new Group2CicdProjectStack(app, 'Group2CicdProjectStack', {
 
   /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
 });
+
+// Add your pipeline stack
+new PipelineStack(app, 'Group2PipelineStack');
