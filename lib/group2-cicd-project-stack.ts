@@ -1,16 +1,24 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 
 export class Group2CicdProjectStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // The code that defines your stack goes here
+    // Define the Lambda function
+    const group2Lambda = new lambda.Function(this, 'Group2Lambda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('lambda'), // directory with your lambda/index.js
+    });
 
-    // example resource
-    // const queue = new sqs.Queue(this, 'Group2CicdProjectQueue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
+    // Define the API Gateway to trigger the Lambda
+    new apigateway.LambdaRestApi(this, 'Group2API', {
+      handler: group2Lambda,
+      proxy: true,
+    });
   }
 }
+
