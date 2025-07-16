@@ -5,6 +5,7 @@ import * as codepipeline_actions from 'aws-cdk-lib/aws-codepipeline-actions';
 import * as codebuild from 'aws-cdk-lib/aws-codebuild';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import * as iam from 'aws-cdk-lib/aws-iam';
 
 export class PipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -15,7 +16,6 @@ export class PipelineStack extends cdk.Stack {
     const sourceOutput = new codepipeline.Artifact();
     const buildOutput = new codepipeline.Artifact();
 
-    // Correct reference to 'github-token'
     const githubToken = secretsmanager.Secret.fromSecretNameV2(this, 'GitHubToken', 'githubtoken');
 
     const pipeline = new codepipeline.Pipeline(this, 'Group2Pipeline', {
@@ -23,18 +23,26 @@ export class PipelineStack extends cdk.Stack {
       artifactBucket: artifactBucket,
     });
 
+    // Stage 1: Source
     pipeline.addStage({
       stageName: 'Source',
       actions: [
         new codepipeline_actions.GitHubSourceAction({
           actionName: 'GitHub_Source',
-          owner: 'Aicha-Fadel', // Replace with your GitHub username
-          repo: 'group2-cicd-project', // Replace with your repo name
-          oauthToken: githubToken.secretValue, // Correct usage
+          owner: 'Aicha-Fadel', // replace with your GitHub username
+          repo: 'group2-cicd-project', // replace with your GitHub repo
+          oauthToken: githubToken.secretValue,
           output: sourceOutput,
           branch: 'master',
         }),
       ],
+    });
+
+    // Stage 2: Build
+    const buildProject = new codebuild.PipelineProject(this, 'LambdaBuildProject', {
+      environment: {
+        buildImage: codebuild.LinuxBuildImage.STANDARD_5_0,
+      },
     });
 
     pipeline.addStage({
@@ -42,13 +50,22 @@ export class PipelineStack extends cdk.Stack {
       actions: [
         new codepipeline_actions.CodeBuildAction({
           actionName: 'Lambda_Build',
-          project: new codebuild.PipelineProject(this, 'LambdaBuildProject', {
-            environment: {
-              buildImage: codebuild.LinuxBuildImage.STANDARD_5_0,
-            },
-          }),
+          project: buildProject,
           input: sourceOutput,
           outputs: [buildOutput],
+        }),
+      ],
+    });
+
+    // Stage 3: Deploy (CDK deploy of Lambda/API Gateway via CloudFormation)
+    pipeline.addStage({
+      stageName: 'Deploy',
+      actions: [
+        new codepipeline_actions.CloudFormationCreateUpdateStackAction({
+          actionName: 'CDK_Deploy',
+          stackName: 'Group2LambdaStack',
+          templatePath: buildOutput.atPath('group2-cicd-project.template.json'),
+          adminPermissions: true,
         }),
       ],
     });
