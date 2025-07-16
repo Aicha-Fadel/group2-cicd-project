@@ -13,8 +13,11 @@ phases:
       - echo Build started on `date`
       - npm run build || echo "No build script defined, skipping"
       - cdk synth > group2-cicd-project.template.json
+  post_build:
+    commands:
+      - echo "Deploying stack..."
+      - cdk deploy --require-approval never
 
 artifacts:
   files:
     - '**/*'
-    - group2-cicd-project.template.json
